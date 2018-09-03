@@ -31,21 +31,6 @@ end
 
 -- Calculation of v,vy and rot based on user inputs
 function airshuttle.user_control(self)
-	if not self.driver then
-		airshuttle.remove_airshuttle(self, minetest.get_player_by_name(self.owner or ""))
-		return false
-	end
-		
-	local driver_objref = minetest.get_player_by_name(self.driver)
-	if not driver_objref then
-		airshuttle.remove_airshuttle(self, minetest.get_player_by_name(self.owner or ""))
-		return false
-	end
-	
-	if not self.on_trip then
-		return false
-	end
-	
 	local ctrl = self.driver:get_player_control()
 	if ctrl.up and ctrl.down then
 		if not self.auto then
@@ -53,13 +38,13 @@ function airshuttle.user_control(self)
 			minetest.chat_send_player(self.driver:get_player_name(), "[airshuttle] Cruise on")
 		end
 	elseif ctrl.down then
-		self.v = self.v - 0.2
+		self.speedH = self.speedH - 0.2
 		if self.auto then
 			self.auto = false
-			minetest.chat_send_player(driver:get_player_name(), "[airshuttle] Cruise off")
+			minetest.chat_send_player(self.driver:get_player_name(), "[airshuttle] Cruise off")
 		end
 	elseif ctrl.up or self.auto then
-		self.v = self.v + 0.2
+		self.speedH = self.speedH + 0.2
 	end
 	if ctrl.left then
 		self.rot = self.rot + 0.002
@@ -67,19 +52,19 @@ function airshuttle.user_control(self)
 		self.rot = self.rot - 0.002
 	end
 	if ctrl.jump then
-		self.vy = self.vy + 0.075
+		self.speedV = self.speedV + 0.075
 	elseif ctrl.sneak then
-		self.vy = self.vy - 0.075
+		self.speedV = self.speedV - 0.075
 	end
 	
 	-- Reduction and limiting of linear speed
-	local s = get_sign(self.v)
-	self.v = self.v - 0.02 * s
-	if s ~= get_sign(self.v) then
-		self.v = 0
+	local s = get_sign(self.speedH)
+	self.speedH = self.speedH - 0.02 * s
+	if s ~= get_sign(self.speedH) then
+		self.speedH = 0
 	end
-	if math.abs(self.v) > 6 then
-		self.v = 6 * get_sign(self.v)
+	if math.abs(self.speedH) > 6 then
+		self.speedH = 6 * get_sign(self.speedH)
 	end
 
 	-- Reduction and limiting of rotation
@@ -93,13 +78,13 @@ function airshuttle.user_control(self)
 	end
 
 	-- Reduction and limiting of vertical speed
-	local sy = get_sign(self.vy)
-	self.vy = self.vy - 0.03 * sy
-	if sy ~= get_sign(self.vy) then
-		self.vy = 0
+	local sy = get_sign(self.speedV)
+	self.speedV = self.speedV - 0.03 * sy
+	if sy ~= get_sign(self.speedV) then
+		self.speedV = 0
 	end
-	if math.abs(self.vy) > 4 then
-		self.vy = 4 * get_sign(self.vy)
+	if math.abs(self.speedV) > 4 then
+		self.speedV = 4 * get_sign(self.speedV)
 	end
 	
 	return true
