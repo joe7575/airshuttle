@@ -1,0 +1,2 @@
+# AirShuttle is remote controlled (true/false)
+remote_controlled (remote controlled) bool true
