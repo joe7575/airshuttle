@@ -30,56 +30,56 @@ local function get_v(v)
 end
 
 -- Calculation of v,vy and rot based on user inputs
-function airshuttle.user_control(self)
-	local ctrl = self.driver:get_player_control()
+function airshuttle.user_control(self, pilot)
+	local ctrl = pilot:get_player_control()
 	if ctrl.up and ctrl.down then
 		if not self.auto then
 			self.auto = true
-			minetest.chat_send_player(self.driver:get_player_name(), "[airshuttle] Cruise on")
+			minetest.chat_send_player(pilot:get_player_name(), "[airshuttle] Cruise on")
 		end
 	elseif ctrl.down then
-		self.speedH = self.speedH - 0.2
+		self.speedH = self.speedH - 0.8
 		if self.auto then
 			self.auto = false
-			minetest.chat_send_player(self.driver:get_player_name(), "[airshuttle] Cruise off")
+			minetest.chat_send_player(pilot:get_player_name(), "[airshuttle] Cruise off")
 		end
 	elseif ctrl.up or self.auto then
-		self.speedH = self.speedH + 0.2
+		self.speedH = self.speedH + 0.8
 	end
 	if ctrl.left then
-		self.rot = self.rot + 0.002
+		self.rot = self.rot + 0.01
 	elseif ctrl.right then
-		self.rot = self.rot - 0.002
+		self.rot = self.rot - 0.01
 	end
 	if ctrl.jump then
-		self.speedV = self.speedV + 0.075
+		self.speedV = self.speedV + 0.4
 	elseif ctrl.sneak then
-		self.speedV = self.speedV - 0.075
+		self.speedV = self.speedV - 0.4
 	end
 	
 	-- Reduction and limiting of linear speed
 	local s = get_sign(self.speedH)
-	self.speedH = self.speedH - 0.02 * s
+	self.speedH = self.speedH - 0.4 * s
 	if s ~= get_sign(self.speedH) then
 		self.speedH = 0
 	end
-	if math.abs(self.speedH) > 6 then
-		self.speedH = 6 * get_sign(self.speedH)
+	if math.abs(self.speedH) > 8 then
+		self.speedH = 8 * get_sign(self.speedH)
 	end
 
 	-- Reduction and limiting of rotation
 	local sr = get_sign(self.rot)
-	self.rot = self.rot - 0.0003 * sr
+	self.rot = self.rot - 0.005 * sr
 	if sr ~= get_sign(self.rot) then
 		self.rot = 0
 	end
-	if math.abs(self.rot) > 0.02 then
-		self.rot = 0.02 * get_sign(self.rot)
+	if math.abs(self.rot) > 0.1 then
+		self.rot = 0.1 * get_sign(self.rot)
 	end
 
 	-- Reduction and limiting of vertical speed
 	local sy = get_sign(self.speedV)
-	self.speedV = self.speedV - 0.03 * sy
+	self.speedV = self.speedV - 0.2 * sy
 	if sy ~= get_sign(self.speedV) then
 		self.speedV = 0
 	end

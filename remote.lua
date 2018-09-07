@@ -11,8 +11,8 @@
 
 local P = minetest.pos_to_string
 local F = function(val) return string.format("            %g", val):sub(-8, -1) end
-local DBG = function(...) end
---local DBG = print
+--local DBG = function(...) end
+local DBG = print
 
 local MAX_DISTANCE = 1000 -- per hop
 
@@ -34,6 +34,9 @@ local ROT_STEP = 0.2
 -- decrease value if shuttle does not hit the target
 local MAGIC_FACTOR = 0.18
 
+-- used to detect a server restart to re-initialize the launcher node
+local ServerRestart = {}
+
 local function yaw_offset(rad1, rad2)
 	local offs = rad1 - rad2
 	if offs > math.pi then 
@@ -53,46 +56,8 @@ local function get_sign(i)
 	end
 end
 
---local Route = {
---	{"rel", "0,15,0", SH_MAX},
---	{"rel", "30,0,30", SH_MAX},
---	{"rel", "-30,0,-30", SH_MAX},
---}	
-
-local Route = {
-	{"rel", "0,5,20", SH_MAX},
-}	
-
---local Route = {
---	{"rel", "0,10,30", SH_MAX},
---	{"rel", "30,0,0", SH_MAX},
---	{"rel", "0,0,-30", SH_MAX},
---	{"jump", "-808,39,-338", SH_MAX}, -- always absolute
---	{"abs", "-835,39,-342", SH_MAX},
---}	
-
-local function get_next_pos(self, pos, next_idx)
-	local item = Route[next_idx]
-	local next_pos = pos
-	if #item == 3 then
-		if item[1] == "rel" then
-			local p = minetest.string_to_pos("("..item[2]..")") or {x=0, y=0, z=0}
-			next_pos = vector.add(pos, p)
-		elseif item[1] == "abs" then
-			next_pos = minetest.string_to_pos("("..item[2]..")") or pos
-		elseif item[1] == "jump" then
-			next_pos = minetest.string_to_pos("("..item[2]..")") or pos
-			self.object:setpos(next_pos)
-		end
-		if vector.distance(pos, next_pos) < MAX_DISTANCE then
-			return next_pos, tonumber(item[3]) or SH_MAX
-		end
-	end
-	return pos, SH_MAX
-end
-
 local function dest_position_reached(self, distH, distV)
-	DBG(self.next_idx, self.dest_approach, F(distH), F(distV), F(self.speedH))
+	DBG(self.wp_number, self.dest_approach, F(distH), F(distV), F(self.speedH))
 	if self.dest_approach then
 		return distH < 0.2 and  math.abs(distV) < 0.1
 	else
@@ -106,9 +71,10 @@ function airshuttle.remote_control(self)
 	if self.dest_pos == nil then
 		self.dest_approach = false
 		self.start_pos = pos
-		self.sh_max = SH_MAX
-		self.dest_pos, self.sh_max = get_next_pos(self, pos, self.next_idx)
-		self.next_idx = self.next_idx + 1
+		self.wp_number = 1
+		self.wp_number, self.dest_pos, self.sh_max = 
+			airshuttle.get_next_waypoint(self.owner, self.route_id, self.wp_number)
+		if not self.wp_number then return end
 	end
 	-- calculate yaw and distance H/V
 	local distH = vector.distance(pos, self.dest_pos)
@@ -167,12 +133,13 @@ function airshuttle.remote_control(self)
 	end
 	
 	if dest_position_reached(self, distH, distV) then
-		if self.next_idx <= #Route then
-			self.dest_pos, self.sh_max = get_next_pos(self, self.dest_pos, self.next_idx)
-			self.next_idx = self.next_idx + 1
+		self.wp_number, self.dest_pos, self.sh_max = 
+			airshuttle.get_next_waypoint(self.owner, self.route_id, self.wp_number)
+		if self.wp_number and not self.dest_approach then
 			DBG("checkpoint hit")
 		elseif not self.dest_approach then -- destination approach
 			self.dest_pos = table.copy(self.start_pos)
+			self.sh_max = 3
 			self.dest_approach = true
 			DBG("destination approach")
 		else
@@ -224,27 +191,38 @@ end)
 minetest.register_node("airshuttle:launcher", {
 	description = "AirShuttle Launcher",
 	drawtype = "node",
-	tiles = {"airshuttle_inv.png"},
+	tiles = {"airshuttle_launcher.png"},
 	
 	-- switch ON/OFF
 	on_rightclick = function (pos, node, clicker)
 		local meta = minetest.get_meta(pos)
 		local busy = meta:get_int("busy")
 		local owner = meta:get_string("owner")
-		if busy == 0 then
+		local route_id = meta:get_int("route_id")
+		if busy == 0 or ServerRestart[route_id] == nil then
+			ServerRestart[route_id] = true
 			local spos = minetest.pos_to_string(clicker:get_pos())
 			clicker:set_attribute("airshuttle_start_pos", spos)
-			airshuttle.place_shuttle(pos, clicker, owner, node.param2)
+			airshuttle.place_shuttle(pos, clicker, owner, node.param2, route_id)
 			meta:set_int("busy", 1)
 		end
 	end,
 
 	after_place_node = function(pos, placer)
 		local meta = minetest.get_meta(pos)
+		local route_id = airshuttle.get_next_id(placer:get_player_name())
+		meta:set_int("route_id", route_id)
 		meta:set_int("busy", 0)
 		meta:set_string("owner", placer:get_player_name())
+		meta:set_string("infotext", "AirShuttle Launcher (ID "..route_id..")")
 	end,
 
+	after_dig_node = function(pos, oldnode, oldmetadata, digger)
+		local meta = minetest.get_meta(pos)
+		local route_id = meta:get_int("route_id")
+		airshuttle.delete_id(digger:get_player_name(), route_id)
+	end,
+	
 	paramtype = "light",
 	paramtype2 = "facedir",
 	sunlight_propagates = true,

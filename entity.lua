@@ -9,9 +9,6 @@
 	
 ]]--
 
-local remote_controlled = tonumber(minetest.setting_get("remote_controlled")) or true
-local debug_mode = tonumber(minetest.setting_get("remote_controlled")) or true
-
 local function get_sign(i)
 	if i == 0 then
 		return 0
@@ -49,12 +46,13 @@ local AirshuttleEntity = {
 	speedH = 0,
 	speedV = 0,
 	rot = 0,
+	timer = 0,
 	auto = false,
 	on_trip = false,
-	next_idx = 1,
 	dest_pos = nil,
 	start_pos = nil,
 	dest_approach = false,
+	remote_controlled = false,
 }
 
 function AirshuttleEntity.on_rightclick(self, clicker)
@@ -79,23 +77,10 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 			clicker:setpos(pos)
 		end)
 		print("remove_airshuttle")
-		airshuttle.remove_airshuttle(self, name)
+		airshuttle.remove_airshuttle(self)
 	elseif not self.driver then
 		-- Attach
-		local attach = clicker:get_attach()
-		if attach and attach:get_luaentity() then
-			local luaentity = attach:get_luaentity()
-			if luaentity.driver then
-				luaentity.driver = nil
-			end
-			clicker:set_detach()
-		end
-		self.driver = name
-		self.on_trip = true
-		clicker:set_attach(self.object, "",
-			{x = 0, y = 6, z = 0}, {x = 0, y = 0, z = 0})
-		default.player_attached[name] = true
-		clicker:set_look_horizontal(self.object:getyaw())
+		airshuttle.start_fly(self, clicker, nil)
 	end
 end
 
@@ -114,48 +99,43 @@ function AirshuttleEntity.on_punch(self, puncher)
 		or self.owner == "" 
 		or self.owner == nil
 		or minetest.check_player_privs(name, "server") then
-			airshuttle.remove_airshuttle(self, puncher)
+			airshuttle.remove_airshuttle(self)
 		end
 	end
 end
 
 
-local timer = 0
-
 function AirshuttleEntity.on_step(self, dtime)
-	timer = timer + dtime
-	if remote_controlled and timer < 0.5 then
+	self.timer = (self.timer or 0) + dtime
+	if self.remote_controlled and self.timer < 0.3 then
 		return
 	end
-	timer = 0
+	self.timer = 0
 	
 	if not self.on_trip then
 		return false
 	end
 	
-	if debug_mode ~= 1 then
-		if not self.driver then
-			airshuttle.remove_airshuttle(self, minetest.get_player_by_name(self.owner or ""))
-			return false
-		end
-			
-		local driver_objref = minetest.get_player_by_name(self.driver)
-		if not driver_objref then
-			airshuttle.remove_airshuttle(self, minetest.get_player_by_name(self.owner or ""))
-			return false
-		end
-		
+	if not self.driver then
+		airshuttle.remove_airshuttle(self)
+		return false
 	end
-	
+		
+	local driver_objref = minetest.get_player_by_name(self.driver)
+	if not driver_objref then
+		airshuttle.remove_airshuttle(self)
+		return false
+	end
+		
 	self.speedH = get_v(self.object:getvelocity()) * get_sign(self.speedH)
 	self.speedV = self.object:getvelocity().y
 
 	-- Controls
-	if remote_controlled then
+	if self.remote_controlled then
 		airshuttle.remote_control(self)
 		dtime = 0
 	else
-		if not airshuttle.user_control(self) then return end
+		if not airshuttle.user_control(self, driver_objref) then return end
 	end
 	
 	-- Early return for stationary vehicle
@@ -165,14 +145,14 @@ function AirshuttleEntity.on_step(self, dtime)
 	end
 	
 	local new_acce = {x = 0, y = 0, z = 0}
-	-- Bouyancy in liquids
-	local p = self.object:getpos()
-	p.y = p.y - 1.5
-	local def = minetest.registered_nodes[minetest.get_node(p).name]
-	if def and (def.liquidtype == "source" or def.liquidtype == "flowing") then
-		new_acce = {x = 0, y = 10, z = 0}
-	end
-
+--	-- Bouyancy in liquids
+--	local p = self.object:getpos()
+--	p.y = p.y - 1.5
+--	local def = minetest.registered_nodes[minetest.get_node(p).name]
+--	if def and (def.liquidtype == "source" or def.liquidtype == "flowing") then
+--		new_acce = {x = 0, y = 10, z = 0}
+--	end
+	self.object:setpos(self.object:getpos())
 	self.object:setvelocity(get_velocity(self.speedH, self.object:getyaw(), self.speedV))
 	self.object:setacceleration(new_acce)
 	self.object:setyaw(self.object:getyaw() + (1 + dtime) * self.rot)
@@ -188,7 +168,7 @@ minetest.register_craftitem("airshuttle:airshuttle", {
 	description = "AirShuttle",
 	inventory_image = "airshuttle_inv.png",
 	liquids_pointable = true,
-	groups = {not_in_creative_inventory = 1},
+	--groups = {not_in_creative_inventory = 1},
 	
 	on_place = function(itemstack, placer, pointed_thing)
 		local under = pointed_thing.under
@@ -213,7 +193,9 @@ minetest.register_craftitem("airshuttle:airshuttle", {
 		if airshuttle then
 			if placer then
 				airshuttle:setyaw(placer:get_look_horizontal())
-				airshuttle:get_luaentity().owner = placer and placer:get_player_name() or "" 
+				local self = airshuttle:get_luaentity()
+				self.owner = placer and placer:get_player_name() or "" 
+				self.pos = table.copy(pointed_thing.under)
 				itemstack:take_item()
 			end
 		end
@@ -246,10 +228,10 @@ minetest.register_node("airshuttle:airshuttle_nodebox", {
 			{  6/24,  0/24,  -15/24,    12/24,  1/24,  -3/24}, -- Right fin
 		},
 	},
-	groups = {not_in_creative_inventory = 1},
+	groups = {cracky = 3, oddly_breakable_by_hand = 3},
 })
 
-function airshuttle.remove_airshuttle(self, player)
+function airshuttle.remove_airshuttle(self)
 	if not self.removed then
 		self.removed = true
 		self.on_trip = false
@@ -263,7 +245,7 @@ function airshuttle.remove_airshuttle(self, player)
 	end
 end
 
-function airshuttle.start_fly(self, start_pos, player)
+function airshuttle.start_fly(self, player, route_id)
 	local attach = player:get_attach()
 	local name = player and player:get_player_name() or ""
 	if attach and attach:get_luaentity() then
@@ -273,15 +255,21 @@ function airshuttle.start_fly(self, start_pos, player)
 		end
 		player:set_detach()
 	end
-	self.driver = name
+	if route_id then
+		self.route_id = route_id
+		self.remote_controlled = true
+	else
+		self.remote_controlled = false
+	end
 	self.on_trip = true
+	self.driver = name
 	player:set_attach(self.object, "",
 		{x = 0, y = 6, z = 0}, {x = 0, y = 0, z = 0})
 	default.player_attached[name] = true
 	player:set_look_horizontal(self.object:getyaw())
 end
 
-function airshuttle.place_shuttle(pos, player, owner, facedir)
+function airshuttle.place_shuttle(pos, player, owner, facedir, route_id)
 	pos.y = pos.y + 1
 	local airshuttle_entity = minetest.add_entity(pos, "airshuttle:airshuttle")
 	if airshuttle_entity and player then
@@ -297,6 +285,6 @@ function airshuttle.place_shuttle(pos, player, owner, facedir)
 		self.owner = owner
 		pos.y = pos.y - 1
 		self.pos = table.copy(pos)
-		airshuttle.start_fly(self, pos, player)
+		airshuttle.start_fly(self, player, route_id)
 	end
 end
