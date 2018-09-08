@@ -166,7 +166,7 @@ minetest.register_entity("airshuttle:airshuttle", AirshuttleEntity)
 
 minetest.register_craftitem("airshuttle:airshuttle", {
 	description = "AirShuttle",
-	inventory_image = "airshuttle_inv.png",
+	inventory_image = "airshuttle_launcher.png",
 	liquids_pointable = true,
 	--groups = {not_in_creative_inventory = 1},
 	
@@ -230,6 +230,7 @@ minetest.register_node("airshuttle:airshuttle_nodebox", {
 	},
 	groups = {cracky = 3, oddly_breakable_by_hand = 3},
 })
+
 
 function airshuttle.remove_airshuttle(self)
 	if not self.removed then
