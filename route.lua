@@ -23,6 +23,7 @@ local storage = minetest.get_mod_storage()
 local AirRoutes = minetest.deserialize(storage:get_string("AirRoutes")) or {}
 
 local function update_mod_storage()
+	--print(dump(AirRoutes))
 	storage:set_string("AirRoutes", minetest.serialize(AirRoutes))
 end
 
@@ -124,19 +125,24 @@ function airshuttle.get_next_waypoint(name, id, number)
 end
 
 function airshuttle.get_next_id(name)
-	if AirRoutes[name] then
-		for id = 1, MAX_NUM_ROUTES do
-			if not AirRoutes[name][id] then
-				return id
-			end
+	if not AirRoutes[name] then
+		AirRoutes[name] = {}
+	end
+	for id = 1, MAX_NUM_ROUTES do
+		if not AirRoutes[name][id] then
+			AirRoutes[name][id] = array(MAX_NUM_WAYPOINTS, false)
+			update_mod_storage()
+			return id
 		end
 	end
 end
 
 function airshuttle.delete_id(name, id)
+	--print("delete_id", name, id)
 	if AirRoutes[name] and AirRoutes[name][id] then
-		AirRoutes[name][id] = array(MAX_NUM_WAYPOINTS, false)
+		AirRoutes[name][id] = false
 	end
+	update_mod_storage()
 end
 
 minetest.register_node("airshuttle:routemarker", {
@@ -170,7 +176,7 @@ minetest.register_node("airshuttle:routemarker", {
 	is_ground_content = false,
 	drop = "",
 	walkable = false,
-	groups = {cracky = 3, oddly_breakable_by_hand = 3},
+	groups = {cracky = 3, oddly_breakable_by_hand = 3, not_in_creative_inventory = 1},
 	sounds = default.node_sound_glass_defaults(),
 })
 
