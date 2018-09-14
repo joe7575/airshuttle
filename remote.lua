@@ -11,15 +11,15 @@
 
 local P = minetest.pos_to_string
 local F = function(val) return string.format("            %g", val):sub(-8, -1) end
---local DBG = function(...) end
-local DBG = print
+local DBG = function(...) end
+--local DBG = print
 
 local MAX_DISTANCE = 1000 -- per hop
 local TELEPORT_DIST = 200
 
 -- Speed horizontal [m/s]
 local SH_MAX = 8
-local SH_CHECKP = 2
+local SH_CHECKP = 2.5
 local SH_MIN = 0.1
 local SH_STEP = 0.5
 
@@ -34,9 +34,6 @@ local ROT_STEP = 0.2
 
 -- decrease value if shuttle does not hit the target
 local MAGIC_FACTOR = 0.18
-
--- used to detect a server restart to re-initialize the launcher node
-local ServerRestart = {}
 
 local function yaw_offset(rad1, rad2)
 	local offs = rad1 - rad2
@@ -66,51 +63,6 @@ local function dest_position_reached(self, distH, distV)
 	end
 end
 
-local function start_fly(self, player, route_id)
-	local attach = player:get_attach()
-	local name = player and player:get_player_name() or ""
-	if attach and attach:get_luaentity() then
-		local luaentity = attach:get_luaentity()
-		if luaentity.driver then
-			luaentity.driver = nil
-		end
-		player:set_detach()
-	end
-	if route_id then
-		self.route_id = route_id
-		self.remote_controlled = true
-	else
-		self.remote_controlled = false
-	end
-	self.on_trip = true
-	self.driver = name
-	player:set_attach(self.object, "",
-		{x = 0, y = 6, z = 0}, {x = 0, y = 0, z = 0})
-	default.player_attached[name] = true
-	player:set_look_horizontal(self.object:getyaw())
-end
-
-local function place_shuttle(pos, player, owner, facedir, route_id)
-	pos.y = pos.y + 1
-	local airshuttle_entity = minetest.add_entity(pos, "airshuttle:airshuttle")
-	if airshuttle_entity and player then
-		local self = airshuttle_entity:get_luaentity()
-		if facedir then
-			local dir = minetest.facedir_to_dir(facedir)
-			local yaw = minetest.dir_to_yaw(dir)
-			airshuttle_entity:set_yaw(yaw)
-			player:set_look_horizontal(yaw)
-		else
-			airshuttle_entity:set_yaw(player:get_look_horizontal())
-		end
-		self.owner = owner
-		self.passenger = player:get_player_name()
-		pos.y = pos.y - 1
-		self.pos = table.copy(pos)
-		start_fly(self, player, route_id)
-	end
-end
-
 -- Calculation of v,vy and rot based on predefined route
 function airshuttle.remote_control(self)
 	local pos = self.object:getpos()
@@ -120,7 +72,7 @@ function airshuttle.remote_control(self)
 		self.wp_number = nil
 		self.wp_number, self.dest_pos, self.sh_max = 
 			airshuttle.get_next_waypoint(self.owner, self.route_id, self.wp_number)
-		if not self.wp_number then return end
+		if not self.wp_number then return false end
 	end
 	-- calculate yaw and distance H/V
 	local distH = vector.distance(pos, self.dest_pos)
@@ -154,6 +106,10 @@ function airshuttle.remote_control(self)
 		self.speedV = math.max(-SV_MAX, distV/4 - SV_MIN, self.speedV - SV_STEP)
 	end
 	if math.abs(distV) < 0.1 then self.speedV = 0 end
+	
+	if self.speedH == 0 and self.rot == 0 and self.speedV == 0 then
+		return false
+	end
 	
 	-- rotation speed
 	if dyaw > ROT_MAX then
@@ -196,34 +152,29 @@ function airshuttle.remote_control(self)
 			self.dest_approach = true
 			DBG("destination approach")
 		else
-			self.driver = nil
-			self.auto = false
 			self.on_trip = false
-			local passenger = minetest.get_player_by_name(self.passenger)
-			if passenger then
-				passenger:set_detach()
-				default.player_attached[self.passenger] = false
-				default.player_set_animation(passenger, "stand" , 30)
-			end
-			airshuttle.remove_airshuttle(self)
 			DBG("mission accomplished")
+			self.object:setvelocity({x = 0, y = 0, z = 0})
+			self.object:setpos(self.object:getpos())
+			return false
 		end
 	end
+	return true
 end
 
-minetest.register_chatcommand("start_fly", {
-	description = "Start the AirShuttle sightseeing trip",
-	func = function(name)
-		local player = minetest.get_player_by_name(name)
-		if player then
-			local spos = minetest.pos_to_string(player:get_pos())
-			player:set_attribute("airshuttle_start_pos", spos)
-			local p = player:get_pos()
-			p.y = p.y + 0.6
-			place_shuttle(p, player, player)
-		end
-	end,
-})
+--minetest.register_chatcommand("start_fly", {
+--	description = "Start the AirShuttle sightseeing trip",
+--	func = function(name)
+--		local player = minetest.get_player_by_name(name)
+--		if player then
+--			local spos = minetest.pos_to_string(player:get_pos())
+--			player:set_attribute("airshuttle_start_pos", spos)
+--			local p = player:get_pos()
+--			p.y = p.y + 0.6
+--			place_shuttle(p, player, player)
+--		end
+--	end,
+--})
 
 
 -- Place the player back to the start point
@@ -233,7 +184,12 @@ local function reset_player(player)
 		if spos then
 			local pos = minetest.string_to_pos(spos)
 			if pos then
-				player:set_pos(pos)
+				player:set_detach()
+				default.player_attached[player:get_player_name()] = false
+				default.player_set_animation(player, "stand" , 30)
+				minetest.after(0.1, function()
+					player:setpos(pos)
+				end)
 			end
 			player:set_attribute("airshuttle_start_pos", nil)
 		end
@@ -250,51 +206,6 @@ minetest.register_on_dieplayer(function(player)
 	reset_player(player)
 end)
 
-minetest.register_node("airshuttle:launcher", {
-	description = "AirShuttle Launcher",
-	drawtype = "node",
-	tiles = {"airshuttle_launcher.png"},
-	
-	-- switch ON/OFF
-	on_rightclick = function (pos, node, clicker)
-		local meta = minetest.get_meta(pos)
-		local busy = meta:get_int("busy")
-		local owner = meta:get_string("owner")
-		local route_id = meta:get_int("route_id")
-		if busy == 0 or ServerRestart[route_id] == nil then
-			ServerRestart[route_id] = true
-			local spos = minetest.pos_to_string(clicker:get_pos())
-			clicker:set_attribute("airshuttle_start_pos", spos)
-			place_shuttle(pos, clicker, owner, node.param2, route_id)
-			meta:set_int("busy", 1)
-		end
-	end,
-
-	after_place_node = function(pos, placer)
-		local meta = minetest.get_meta(pos)
-		local route_id = airshuttle.get_next_id(placer:get_player_name())
-		if route_id then
-			meta:set_int("route_id", route_id)
-			meta:set_int("busy", 0)
-			meta:set_string("owner", placer:get_player_name())
-			meta:set_string("infotext", "AirShuttle Launcher (ID "..route_id..")")
-		else
-			minetest.chat_send_player(placer:get_player_name(), "[AirShuttle] Number of Launcher exceeded!")
-		end
-	end,
-
-	after_dig_node = function(pos, oldnode, oldmetadata, digger)
-		local route_id = tonumber(oldmetadata["fields"]["route_id"])
-		airshuttle.delete_id(digger:get_player_name(), route_id)
-	end,
-	
-	paramtype = "light",
-	paramtype2 = "facedir",
-	sunlight_propagates = true,
-	is_ground_content = false,
-	groups = {cracky = 1},
-	sounds = default.node_sound_metal_defaults(),
-})
 
 
 

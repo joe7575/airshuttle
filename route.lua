@@ -9,11 +9,6 @@
 	
 ]]--
 
-
-local P = minetest.pos_to_string
-local DBG = function(...) end
---local DBG = print
-
 local MAX_NUM_WAYPOINTS = 20
 local MAX_NUM_ROUTES = 20
 -------------------------------------------------------------------
@@ -23,7 +18,6 @@ local storage = minetest.get_mod_storage()
 local AirRoutes = minetest.deserialize(storage:get_string("AirRoutes")) or {}
 
 local function update_mod_storage()
-	--print(dump(AirRoutes))
 	storage:set_string("AirRoutes", minetest.serialize(AirRoutes))
 end
 
@@ -138,7 +132,6 @@ function airshuttle.get_next_id(name)
 end
 
 function airshuttle.delete_id(name, id)
-	--print("delete_id", name, id)
 	if AirRoutes[name] and AirRoutes[name][id] then
 		AirRoutes[name][id] = false
 	end
