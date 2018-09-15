@@ -14,6 +14,8 @@ local F = function(val) return string.format("            %g", val):sub(-8, -1) 
 local DBG = function(...) end
 --local DBG = print
 
+local MissingPlayer = {}
+
 local MAX_DISTANCE = 1000 -- per hop
 local TELEPORT_DIST = 200
 
@@ -177,6 +179,23 @@ end
 --})
 
 
+function airshuttle.player_gone(player_name)
+	if not player_name then
+		return true
+	end
+	
+	local player = minetest.get_player_by_name(player_name)
+	if not player then
+		return true
+	end
+	
+	if MissingPlayer[player_name] then
+		MissingPlayer[player_name] = nil
+		return true
+	end
+	return false
+end
+
 -- Place the player back to the start point
 local function reset_player(player)
 	if player then
@@ -192,6 +211,7 @@ local function reset_player(player)
 				end)
 			end
 			player:set_attribute("airshuttle_start_pos", nil)
+			DBG("player reset")
 		end
 	end
 end	
@@ -201,8 +221,12 @@ minetest.register_on_joinplayer(function(player)
 	reset_player(player)
 end)
 
--- fly is canceled
+minetest.register_on_leaveplayer(function(player)
+	MissingPlayer[player:get_player_name()] = true
+end)
+
 minetest.register_on_dieplayer(function(player)
+	MissingPlayer[player:get_player_name()] = true
 	reset_player(player)
 end)
 

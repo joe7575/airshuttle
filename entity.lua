@@ -9,6 +9,9 @@
 	
 ]]--
 
+local DBG = function(...) end
+--local DBG = print
+
 -- used to detect a server restart to re-initialize the launcher node
 local ServerRestart = {}
 
@@ -68,7 +71,6 @@ local function landed(self)
 end
 		
 local function remove_airshuttle(self)
-	print("remove_airshuttle")
 	self.removed = true
 	self.on_trip = false
 	if self.pos then
@@ -79,6 +81,7 @@ local function remove_airshuttle(self)
 	minetest.after(0.1, function()
 		self.object:remove()
 	end)
+	DBG("airshuttle removed")
 end
 
 function AirshuttleEntity.on_rightclick(self, clicker)
@@ -93,12 +96,15 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 		clicker:set_detach()
 		default.player_attached[name] = false
 		default.player_set_animation(clicker, "stand" , 30)
+		clicker:set_attribute("airshuttle_start_pos", nil)
 		local pos = clicker:getpos()
 		pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
 		minetest.after(0.1, function()
 			clicker:setpos(pos)
 		end)
 		remove_airshuttle(self)
+		minetest.log("action", clicker:get_player_name().." detaches from airshuttle at "..
+			minetest.pos_to_string(pos))
 	elseif not self.driver then
 		-- Attach
 		self.on_trip = true
@@ -120,6 +126,8 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 			default.player_set_animation(clicker, "stand" , 30)
 		end)
 		clicker:set_look_horizontal(self.object:getyaw())
+		minetest.log("action", clicker:get_player_name().." attaches to airshuttle at "..
+			minetest.pos_to_string(clicker:getpos()))
 	end
 end
 
@@ -156,18 +164,12 @@ function AirshuttleEntity.on_step(self, dtime)
 	self.timer = 0
 	
 	if not self.on_trip then
-		return false
+		return
 	end
 	
-	if not self.driver then
+	if airshuttle.player_gone(self.driver) then
 		remove_airshuttle(self)
-		return false
-	end
-		
-	local driver_objref = minetest.get_player_by_name(self.driver)
-	if not driver_objref then
-		remove_airshuttle(self)
-		return false
+		return
 	end
 		
 	self.speedH = get_v(self.object:getvelocity()) * get_sign(self.speedH)
@@ -264,6 +266,8 @@ minetest.register_node("airshuttle:launcher", {
 			meta:set_int("busy", 0)
 			meta:set_string("owner", placer:get_player_name())
 			meta:set_string("infotext", "AirShuttle Launcher (ID "..route_id..")")
+			minetest.log("action", placer:get_player_name().." places airshuttle:launcher at "..
+				minetest.pos_to_string(pos))
 		else
 			minetest.chat_send_player(placer:get_player_name(), "[AirShuttle] Number of Launcher exceeded!")
 		end

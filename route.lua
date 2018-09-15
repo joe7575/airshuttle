@@ -9,6 +9,8 @@
 	
 ]]--
 
+local P = minetest.pos_to_string
+
 local MAX_NUM_WAYPOINTS = 20
 local MAX_NUM_ROUTES = 20
 -------------------------------------------------------------------
