@@ -11,8 +11,8 @@
 
 local P = minetest.pos_to_string
 
-local MAX_NUM_WAYPOINTS = 20
-local MAX_NUM_ROUTES = 20
+local MAX_NUM_WAYPOINTS = 50
+local MAX_NUM_ROUTES = 50
 -------------------------------------------------------------------
 -- Data base storage
 -------------------------------------------------------------------
@@ -99,6 +99,7 @@ local function show_route(name, id)
 			if AirRoutes[name][id][num] then
 				local item = AirRoutes[name][id][num] 
 				tbl[#tbl+1] = num.." : "..P(item.waypoint)..", "..item.speed.." m/s\n"
+				replace_node(item.waypoint, name, "air", {name="airshuttle:routemarker", param2 = num})
 			end
 		end
 		local text = "AirShuttle route "..id..":\n"..table.concat(tbl)
@@ -157,7 +158,7 @@ minetest.register_node("airshuttle:routemarker", {
 		local node = minetest.get_node(pos)
 		local spos = minetest.pos_to_string(pos)
 		meta:set_string("infotext", "Waypoint "..node.param2.." "..spos)
-		minetest.get_node_timer(pos):start(60)
+		minetest.get_node_timer(pos):start(60*5)
 	end,
 	
 	on_timer = function(pos, elapsed)
