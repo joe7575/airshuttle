@@ -7,7 +7,7 @@ A transportation mod for sightseeing tours.
 
 ## Instructions
 
-The air shuttle is remote controlled and can't be self-driven by any player.
+The air shuttle, called "Milchtüte", is remote controlled and can't be self-driven by any player.
 The means the flight route must be defined beforehand.
 
 Start/stop is always the launcher position. Chat commands allow to define waypoints.
