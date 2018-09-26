@@ -255,7 +255,15 @@ minetest.register_node("airshuttle:launcher", {
 			ServerRestart[route_id] = true
 			place_shuttle(pos, owner, node.param2, route_id)
 			meta:set_int("busy", 1)
+			minetest.get_node_timer(pos):start(60*10)
 		end
+	end,
+
+	on_timer = function(pos, elapsed)
+		print("timer")
+		local meta = minetest.get_meta(pos)
+		meta:set_int("busy", 0)
+		return false
 	end,
 
 	after_place_node = function(pos, placer)
