@@ -158,7 +158,7 @@ end
 
 function AirshuttleEntity.on_step(self, dtime)
 	self.timer = (self.timer or 0) + dtime
-	if self.timer < 0.3 then
+	if self.timer < 0.2 then
 		return
 	end
 	self.timer = 0

@@ -17,7 +17,7 @@ local DBG = function(...) end
 local MissingPlayer = {}
 
 local MAX_DISTANCE = 1000 -- per hop
-local TELEPORT_DIST = 200
+local TELEPORT_DIST = 400
 
 -- Speed horizontal [m/s]
 local SH_MAX = 8
@@ -90,15 +90,21 @@ function airshuttle.remote_control(self)
 		distV = 0
 	end
 		
+	-- waypoint missed?
+	if self.oldDist and distH > self.oldDist then
+		self.object:setpos(self.dest_pos)
+	end
+	self.oldDist = distH
+	
 	-- horizontal speed
 	if self.dest_approach then
 		if distH < 0.1 then 
 			self.speedH = 0 
 		else
-			self.speedH = math.min(self.sh_max, distH/2 + SH_MIN, self.speedH + SH_STEP)
+			self.speedH = math.min(self.sh_max, distH + SH_MIN, self.speedH + SH_STEP)
 		end
 	else -- normal check point
-		self.speedH = math.min(self.sh_max, distH/2 + SH_CHECKP, self.speedH + SH_STEP)
+		self.speedH = math.min(self.sh_max, distH + SH_CHECKP, self.speedH + SH_STEP)
 	end
 	
 	-- vertical speed
@@ -144,6 +150,7 @@ function airshuttle.remote_control(self)
 	end
 	
 	if dest_position_reached(self, distH, distV) then
+		self.oldDist = nil
 		self.wp_number, self.dest_pos, self.sh_max = 
 			airshuttle.get_next_waypoint(self.owner, self.route_id, self.wp_number)
 		if self.wp_number and not self.dest_approach then

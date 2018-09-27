@@ -20,8 +20,8 @@ The player has to have 'airshuttle' privs to be able to configure the flight rou
 
 2. Specify the waypoints with `add_waypoint <id> <number> <extra-height>`  
    You can specify the altitude relative to your current position.  
-   `<id>` is the flight ID, `<number>` are the waypoints number from 1 .. 20  
-   `<extra-height>` should be something between 3..20 nodes  
+   `<id>` is the flight ID, `<number>` are the waypoints number from 1 .. 50  
+   `<extra-height>` should be something between 3..50 nodes  
    Marker blocks appear at all waypoints, but disappear after a few minutes.
 
 3. Deleting points again with `del_waypoint <id> <number>`
@@ -40,7 +40,7 @@ The player has to have 'airshuttle' privs to be able to configure the flight rou
 ## Further hints
 
 * The higher you fly, the faster you fly. 
-* If the distance between to waypoints is greater than 200 nodes, the air shuttle we be teleported to the next waypoint. 
+* If the distance between to waypoints is greater than 400 nodes, the air shuttle we be teleported to the next waypoint. 
   This allows you to visit hotspots far away without spending too much time.
 * At the waypoints the plane slows down, especially with strong changes of direction.
 * There is no recipe so far, only the admin are players with creative privs can distribute launcher blocks to players.
@@ -61,3 +61,5 @@ Textures: CC BY-SA 3.0
 
 ### History 
 - 2018-09-26  v0.1  * first try
+- 2018-09-27  v0.2  * some improvements
+
