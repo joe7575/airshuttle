@@ -226,6 +226,7 @@ minetest.register_chatcommand("del_waypoint", {
 			local player = minetest.get_player_by_name(name)
 			local pos = get_waypoint(name, id, number)
 			if pos then
+				del_waypoint(name, id, number)
 				replace_node(pos, name, "airshuttle:routemarker", {name = "air"})
 				local spos =  minetest.pos_to_string(pos)
 				return true, "Waypoint "..id.." at "..spos.." removed."
