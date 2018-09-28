@@ -10,7 +10,7 @@
 ]]--
 
 local P = minetest.pos_to_string
-local F = function(val) return string.format("            %g", val):sub(-8, -1) end
+local F = function(val) return string.format("%2.1f", val) end
 local DBG = function(...) end
 --local DBG = print
 
@@ -31,22 +31,10 @@ local SV_MIN = 0.1
 local SV_STEP = 0.2
 
 -- Rotation steps [radiant]
-local ROT_MAX = 0.3
 local ROT_STEP = 0.2
 
 -- decrease value if shuttle does not hit the target
 local MAGIC_FACTOR = 0.18
-
-local function yaw_offset(rad1, rad2)
-	local offs = rad1 - rad2
-	if offs > math.pi then 
-		return offs - 2 * math.pi
-	end
-	if offs < -math.pi then 
-		return offs + 2 * math.pi
-	end
-	return offs
-end
 
 local function get_sign(i)
 	if i == 0 then
@@ -55,6 +43,15 @@ local function get_sign(i)
 		return i / math.abs(i)
 	end
 end
+
+local function yaw_offset(old, new)
+	local d = (new - old) % (2*math.pi)
+	if d > math.pi then
+		return d - (2*math.pi)
+	end
+	return d
+end
+
 
 local function dest_position_reached(self, distH, distV)
 	DBG(self.wp_number, self.dest_approach, F(distH), F(distV), F(self.speedH))
@@ -67,7 +64,7 @@ end
 
 -- Calculation of v,vy and rot based on predefined route
 function airshuttle.remote_control(self)
-	local pos = self.object:getpos()
+	local pos = self.object:get_pos()
 	if self.dest_pos == nil then
 		self.dest_approach = false
 		self.start_pos = pos
@@ -80,19 +77,19 @@ function airshuttle.remote_control(self)
 	local distH = vector.distance(pos, self.dest_pos)
 	local distV = self.dest_pos.y - pos.y
 	local dir = vector.subtract(self.dest_pos, pos)
-	local yaw = minetest.dir_to_yaw(dir)
-	local dyaw = yaw_offset(yaw, self.object:getyaw())
+	local new_yaw = minetest.dir_to_yaw(dir)
+	local yaw_offs = yaw_offset(self.object:get_yaw(), new_yaw)
 	
 	-- teleport distance?
 	if distH > TELEPORT_DIST then
-		self.object:setpos(self.dest_pos)
+		self.object:set_pos(self.dest_pos)
 		distH = 0
 		distV = 0
 	end
 		
-	-- waypoint missed?
+	-- waypoint missed due lag?
 	if self.oldDist and distH > self.oldDist then
-		self.object:setpos(self.dest_pos)
+		self.object:set_pos(self.dest_pos)
 	end
 	self.oldDist = distH
 	
@@ -115,17 +112,8 @@ function airshuttle.remote_control(self)
 	end
 	if math.abs(distV) < 0.1 then self.speedV = 0 end
 	
-	if self.speedH == 0 and self.rot == 0 and self.speedV == 0 then
+	if self.speedH == 0 and yaw_offs == 0 and self.speedV == 0 then
 		return false
-	end
-	
-	-- rotation speed
-	if dyaw > ROT_MAX then
-		self.rot = ROT_STEP
-	elseif dyaw < -ROT_MAX then
-		self.rot = -ROT_STEP
-	else
-		self.rot = dyaw
 	end
 	
 	-- H/V speed ratio correction
@@ -144,10 +132,14 @@ function airshuttle.remote_control(self)
 	end
 	
 	-- speed/rotation correction
-	local max_speed = distH * MAGIC_FACTOR / math.abs(dyaw)
+	local max_speed = distH * MAGIC_FACTOR / math.abs(yaw_offs)
 	if self.speedH > max_speed then
 		self.speedH = max_speed
 	end
+	
+	-- yaw_offs limitation
+	self.yaw_offs = math.min(math.abs(yaw_offs), ROT_STEP) * get_sign(yaw_offs)
+	print("new_yaw, get_yaw, yaw_offs, yaw_corr", G(new_yaw), G(self.object:get_yaw()), G(yaw_offs), G(self.yaw_offs))
 	
 	if dest_position_reached(self, distH, distV) then
 		self.oldDist = nil
@@ -163,28 +155,13 @@ function airshuttle.remote_control(self)
 		else
 			self.on_trip = false
 			DBG("mission accomplished")
-			self.object:setvelocity({x = 0, y = 0, z = 0})
-			self.object:setpos(self.object:getpos())
+			self.object:set_velocity({x = 0, y = 0, z = 0})
+			self.object:set_pos(self.object:get_pos())
 			return false
 		end
 	end
 	return true
 end
-
---minetest.register_chatcommand("start_fly", {
---	description = "Start the AirShuttle sightseeing trip",
---	func = function(name)
---		local player = minetest.get_player_by_name(name)
---		if player then
---			local spos = minetest.pos_to_string(player:get_pos())
---			player:set_attribute("airshuttle_start_pos", spos)
---			local p = player:get_pos()
---			p.y = p.y + 0.6
---			place_shuttle(p, player, player)
---		end
---	end,
---})
-
 
 function airshuttle.player_gone(player_name)
 	if not player_name then
@@ -214,7 +191,7 @@ local function reset_player(player)
 				default.player_attached[player:get_player_name()] = false
 				default.player_set_animation(player, "stand" , 30)
 				minetest.after(0.1, function()
-					player:setpos(pos)
+					player:set_pos(pos)
 				end)
 			end
 			player:set_attribute("airshuttle_start_pos", nil)

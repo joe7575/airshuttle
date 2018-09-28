@@ -61,7 +61,7 @@ local AirshuttleEntity = {
 
 local function landed(self)
 	if self.speedH < 0.1 then
-		local pos = self.object:getpos()
+		local pos = self.object:get_pos()
 		pos.y = pos.y - 1.5
 		if minetest.get_node(pos).name ~= "air" then
 			return true
@@ -97,10 +97,10 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 		default.player_attached[name] = false
 		default.player_set_animation(clicker, "stand" , 30)
 		clicker:set_attribute("airshuttle_start_pos", nil)
-		local pos = clicker:getpos()
+		local pos = clicker:get_pos()
 		pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
 		minetest.after(0.1, function()
-			clicker:setpos(pos)
+			clicker:set_pos(pos)
 		end)
 		remove_airshuttle(self)
 		minetest.log("action", clicker:get_player_name().." detaches from airshuttle at "..
@@ -125,9 +125,9 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 		minetest.after(0.2, function()
 			default.player_set_animation(clicker, "stand" , 30)
 		end)
-		clicker:set_look_horizontal(self.object:getyaw())
+		clicker:set_look_horizontal(self.object:get_yaw())
 		minetest.log("action", clicker:get_player_name().." attaches to airshuttle at "..
-			minetest.pos_to_string(clicker:getpos()))
+			minetest.pos_to_string(clicker:get_pos()))
 	end
 end
 
@@ -172,13 +172,13 @@ function AirshuttleEntity.on_step(self, dtime)
 		return
 	end
 		
-	self.speedH = get_v(self.object:getvelocity()) * get_sign(self.speedH)
-	self.speedV = self.object:getvelocity().y
+	self.speedH = get_v(self.object:get_velocity()) * get_sign(self.speedH)
+	self.speedV = self.object:get_velocity().y
 
 	if airshuttle.remote_control(self) then
-		self.object:setpos(self.object:getpos())
-		self.object:setvelocity(get_velocity(self.speedH, self.object:getyaw(), self.speedV))
-		self.object:setyaw(self.object:getyaw() + 1 * self.rot)
+		self.object:set_pos(self.object:get_pos())
+		self.object:set_yaw(self.object:get_yaw() + self.yaw_offs)
+		self.object:set_velocity(get_velocity(self.speedH, self.object:get_yaw(), self.speedV))
 	end
 end
 
