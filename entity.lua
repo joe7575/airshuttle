@@ -9,7 +9,8 @@
 	
 ]]--
 
-local DBG = function(...) end
+--local DBG = function(...) end
+local DBG = function(s) minetest.log("action", s) end
 --local DBG = print
 
 -- used to detect a server restart to re-initialize the launcher node
@@ -76,6 +77,8 @@ local function remove_airshuttle(self)
 	if self.pos then
 		local meta = minetest.get_meta(self.pos)
 		meta:set_int("busy", 0)
+	else
+		DBG("remove_airshuttle, self.pos == nil")
 	end
 	-- delay remove to ensure player is detached
 	minetest.after(0.1, function()
@@ -90,6 +93,7 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 	end
 	local name = clicker:get_player_name()
 	if self.driver and name == self.driver and landed(self) then
+		DBG("Detach "..name)
 		-- Detach
 		self.driver = nil
 		self.on_trip = false
@@ -103,9 +107,9 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 			clicker:set_pos(pos)
 		end)
 		remove_airshuttle(self)
-		minetest.log("action", clicker:get_player_name().." detaches from airshuttle at "..
-			minetest.pos_to_string(pos))
+		DBG(name.." detaches from airshuttle at "..minetest.pos_to_string(pos))
 	elseif not self.driver then
+		DBG("Attach "..name)
 		-- Attach
 		self.on_trip = true
 		local spos = minetest.pos_to_string(clicker:get_pos())
@@ -126,12 +130,12 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 			default.player_set_animation(clicker, "stand" , 30)
 		end)
 		clicker:set_look_horizontal(self.object:get_yaw())
-		minetest.log("action", clicker:get_player_name().." attaches to airshuttle at "..
-			minetest.pos_to_string(clicker:get_pos()))
+		DBG(name.." attaches to airshuttle at "..minetest.pos_to_string(clicker:get_pos()))
 	end
 end
 
 function AirshuttleEntity.on_activate(self, staticdata, dtime_s)
+	DBG("AirshuttleEntity.on_activate")
 	self.object:set_armor_groups({immortal = 1})
 end
 
@@ -145,7 +149,9 @@ function AirshuttleEntity.on_punch(self, puncher)
 	end
 	
 	local name = puncher:get_player_name()
+	DBG("on_punch "..name)
 	if self.driver and name == self.driver then
+		DBG("puncher:set_detach")
 		self.driver = nil
 		puncher:set_detach()
 		default.player_attached[name] = false
@@ -168,6 +174,7 @@ function AirshuttleEntity.on_step(self, dtime)
 	end
 	
 	if airshuttle.player_gone(self.driver) then
+		DBG("player_gone")
 		remove_airshuttle(self)
 		return
 	end
@@ -260,7 +267,7 @@ minetest.register_node("airshuttle:launcher", {
 	end,
 
 	on_timer = function(pos, elapsed)
-		print("timer")
+		DBG("timer expired")
 		local meta = minetest.get_meta(pos)
 		meta:set_int("busy", 0)
 		return false
@@ -293,3 +300,15 @@ minetest.register_node("airshuttle:launcher", {
 	groups = {cracky = 1},
 	sounds = default.node_sound_metal_defaults(),
 })
+
+minetest.register_lbm({
+	label = "[airshuttle] Launcher update",
+	name = "airshuttle:update",
+	nodenames = {"airshuttle:launcher"},
+	run_at_every_load = true,
+	action = function(pos, node)
+		local meta = minetest.get_meta(pos)
+		meta:set_int("busy", 0)
+	end
+})
+

@@ -139,7 +139,6 @@ function airshuttle.remote_control(self)
 	
 	-- yaw_offs limitation
 	self.yaw_offs = math.min(math.abs(yaw_offs), ROT_STEP) * get_sign(yaw_offs)
-	print("new_yaw, get_yaw, yaw_offs, yaw_corr", G(new_yaw), G(self.object:get_yaw()), G(yaw_offs), G(self.yaw_offs))
 	
 	if dest_position_reached(self, distH, distV) then
 		self.oldDist = nil
