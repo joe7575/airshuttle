@@ -10,7 +10,7 @@
 ]]--
 
 --local DBG = function(...) end
-local DBG = function(s) minetest.log("action", s) end
+local DBG = function(s) minetest.log("action", "[Airshuttle] "..s) end
 --local DBG = print
 
 -- used to detect a server restart to re-initialize the launcher node
@@ -87,27 +87,33 @@ local function remove_airshuttle(self)
 	DBG("airshuttle removed")
 end
 
+local function detach_player(self, clicker)
+	local name = clicker:get_player_name()
+	self.driver = nil
+	self.on_trip = false
+	if clicker:get_attach() then
+		clicker:set_detach()
+	end
+	default.player_attached[name] = false
+	default.player_set_animation(clicker, "stand" , 30)
+	clicker:set_attribute("airshuttle_start_pos", nil)
+	if self.pos then
+		--local pos = clicker:get_pos()
+		--pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
+		minetest.after(0.1, function()
+			clicker:set_pos(self.pos)
+		end)
+		DBG(name.." detaches from airshuttle at "..minetest.pos_to_string(self.pos))
+	end
+end
+
 function AirshuttleEntity.on_rightclick(self, clicker)
 	if not clicker or not clicker:is_player() then
 		return
 	end
-	local name = clicker:get_player_name()
-	if self.driver and name == self.driver and landed(self) then
-		DBG("Detach "..name)
-		-- Detach
-		self.driver = nil
-		self.on_trip = false
-		clicker:set_detach()
-		default.player_attached[name] = false
-		default.player_set_animation(clicker, "stand" , 30)
-		clicker:set_attribute("airshuttle_start_pos", nil)
-		local pos = clicker:get_pos()
-		pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
-		minetest.after(0.1, function()
-			clicker:set_pos(pos)
-		end)
+	if self.driver and clicker:get_player_name() == self.driver then  --and landed(self) then
+		detach_player(self, clicker)
 		remove_airshuttle(self)
-		DBG(name.." detaches from airshuttle at "..minetest.pos_to_string(pos))
 	elseif not self.driver then
 		DBG("Attach "..name)
 		-- Attach
@@ -148,13 +154,9 @@ function AirshuttleEntity.on_punch(self, puncher)
 		return
 	end
 	
-	local name = puncher:get_player_name()
-	DBG("on_punch "..name)
-	if self.driver and name == self.driver then
-		DBG("puncher:set_detach")
-		self.driver = nil
-		puncher:set_detach()
-		default.player_attached[name] = false
+	DBG("on_punch "..puncher:get_player_name())
+	if self.driver and puncher:get_player_name() == self.driver then
+		detach_player(self, puncher)
 	end
 	if not self.driver then
 		remove_airshuttle(self)
@@ -186,6 +188,10 @@ function AirshuttleEntity.on_step(self, dtime)
 		self.object:set_pos(self.object:get_pos())
 		self.object:set_yaw(self.object:get_yaw() + self.yaw_offs)
 		self.object:set_velocity(get_velocity(self.speedH, self.object:get_yaw(), self.speedV))
+	elseif self.driver then
+		detach_player(self, minetest.get_player_by_name(self.driver))
+		DBG("mission accomplished")
+		remove_airshuttle(self)
 	end
 end
 

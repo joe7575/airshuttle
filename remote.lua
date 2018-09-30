@@ -62,7 +62,7 @@ local function dest_position_reached(self, distH, distV)
 	end
 end
 
--- Calculation of v,vy and rot based on predefined route
+-- Calculation of distH, distV and yaw_offs based on predefined route
 function airshuttle.remote_control(self)
 	local pos = self.object:get_pos()
 	if self.dest_pos == nil then
@@ -88,10 +88,10 @@ function airshuttle.remote_control(self)
 	end
 		
 	-- waypoint missed due lag?
-	if self.oldDist and distH > self.oldDist then
-		self.object:set_pos(self.dest_pos)
-	end
-	self.oldDist = distH
+--	if self.oldDist and distH > self.oldDist then
+--		self.object:set_pos(self.dest_pos)
+--	end
+--	self.oldDist = distH
 	
 	-- horizontal speed
 	if self.dest_approach then
@@ -153,7 +153,6 @@ function airshuttle.remote_control(self)
 			DBG("destination approach")
 		else
 			self.on_trip = false
-			DBG("mission accomplished")
 			self.object:set_velocity({x = 0, y = 0, z = 0})
 			self.object:set_pos(self.object:get_pos())
 			return false
