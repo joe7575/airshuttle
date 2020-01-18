@@ -16,8 +16,8 @@ local DBG = function(...) end
 
 local MissingPlayer = {}
 
-local MAX_DISTANCE = 1000 -- per hop
-local TELEPORT_DIST = 400
+local MAX_DISTANCE = 5000 -- per hop
+local TELEPORT_DIST = 200
 
 -- Speed horizontal [m/s]
 local SH_MAX = 8
@@ -26,7 +26,7 @@ local SH_MIN = 0.1
 local SH_STEP = 0.5
 
 -- Speed vertival [m/s]
-local SV_MAX = 2
+local SV_MAX = 4
 local SV_MIN = 0.1
 local SV_STEP = 0.2
 

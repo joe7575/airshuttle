@@ -62,7 +62,7 @@ local function add_waypoint(name, id, number, pos, height)
 	if not AirRoutes[name][id] then
 		AirRoutes[name][id] = array(MAX_NUM_WAYPOINTS, false)
 	end
-	local speed = range(height/2, 2, 8)
+	local speed = range(height, 2, 8)
 	pos.y = pos.y + height
 	AirRoutes[name][id][number] = {waypoint = table.copy(pos), speed = speed}
 	update_mod_storage()

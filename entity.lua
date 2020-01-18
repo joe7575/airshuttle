@@ -111,7 +111,8 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 	if not clicker or not clicker:is_player() then
 		return
 	end
-	if self.driver and clicker:get_player_name() == self.driver then  --and landed(self) then
+	local name = clicker:get_player_name()
+	if self.driver and name == self.driver then  --and landed(self) then
 		detach_player(self, clicker)
 		remove_airshuttle(self)
 	elseif not self.driver then
@@ -130,7 +131,7 @@ function AirshuttleEntity.on_rightclick(self, clicker)
 		end
 		self.driver = clicker:get_player_name()
 		clicker:set_attach(self.object, "",
-			{x = 0, y = 6, z = 0}, {x = 0, y = 0, z = 0})
+			{x = 0, y = 0, z = 0}, {x = 0, y = 0, z = 0})
 		default.player_attached[name] = true
 		minetest.after(0.2, function()
 			default.player_set_animation(clicker, "stand" , 30)
