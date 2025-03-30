@@ -181,7 +181,7 @@ end
 -- Place the player back to the start point
 local function reset_player(player)
 	if player then
-		local spos = player:get_attribute("airshuttle_start_pos")
+		local spos = player:get_meta():get_string("airshuttle_start_pos")
 		if spos then
 			local pos = minetest.string_to_pos(spos)
 			if pos then
@@ -192,7 +192,7 @@ local function reset_player(player)
 					player:set_pos(pos)
 				end)
 			end
-			player:set_attribute("airshuttle_start_pos", nil)
+			player:get_meta():set_string("airshuttle_start_pos", "")
 			DBG("player reset")
 		end
 	end
